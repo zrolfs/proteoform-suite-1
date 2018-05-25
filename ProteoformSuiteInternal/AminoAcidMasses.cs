@@ -6,9 +6,9 @@ namespace ProteoformSuiteInternal
     {
         public Dictionary<char, double> AA_Masses { get; set; }
 
-        public AminoAcidMasses(bool mOx, bool cBn)
+        public AminoAcidMasses(bool cBn, bool natural_lysine_isotope_abundance, bool neucode_light_lysine, bool neucode_heavy_lysine)
         {
-            string kI = WhichLysineIsotopeComposition();
+            string kI = WhichLysineIsotopeComposition(natural_lysine_isotope_abundance, neucode_light_lysine, neucode_heavy_lysine);
             var aaMasses = new Dictionary<char, double>();
             aaMasses.Add('A', 71.037114);
             aaMasses.Add('R', 156.101111);
@@ -30,24 +30,19 @@ namespace ProteoformSuiteInternal
             aaMasses.Add('L', 113.084064);
             switch (kI)
             {
-                case "n":
-                    aaMasses.Add('K', 128.094963);
-                    break;
                 case "l":
                     aaMasses.Add('K', 136.109162);
                     break;
+
                 case "h":
                     aaMasses.Add('K', 136.1451772);
                     break;
+
+                default:
+                    aaMasses.Add('K', 128.094963);
+                    break;
             }
-            if (mOx)
-            {
-                aaMasses.Add('M', 147.0353996);
-            }
-            else
-            {
-                aaMasses.Add('M', 131.040485);
-            }
+            aaMasses.Add('M', 131.040485);
             aaMasses.Add('F', 147.068414);
             aaMasses.Add('P', 97.052764);
             aaMasses.Add('S', 87.032028);
@@ -59,12 +54,12 @@ namespace ProteoformSuiteInternal
             this.AA_Masses = aaMasses;
         }
 
-        private static string WhichLysineIsotopeComposition()
+        private static string WhichLysineIsotopeComposition(bool natural_lysine_isotope_abundance, bool neucode_light_lysine, bool neucode_heavy_lysine)
         {
-            if (Lollipop.natural_lysine_isotope_abundance) return "n";
-            else if (Lollipop.neucode_light_lysine) return "l";
-            else if (Lollipop.neucode_heavy_lysine) return "h";
-            else return "";
+            if (natural_lysine_isotope_abundance) { return "n"; }
+            else if (neucode_light_lysine) { return "l"; }
+            else if (neucode_heavy_lysine) { return "h"; }
+            else { return ""; }
         }
     }
 }

@@ -1,69 +1,121 @@
-﻿using System;
-using ProteoformSuiteInternal;
+﻿using ProteoformSuiteInternal;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using System.Windows.Forms;
 
-namespace ProteoformSuite
+namespace ProteoformSuiteGUI
 {
-    public partial class ResultsSummary : Form
+    public partial class ResultsSummary : Form, ISweetForm
     {
 
-        BindingList<string> deconResultsFileNames = new BindingList<string>();
-        int numRawExpComponents;
-        int numNeucodePairs;
-        int numExperimentalProteoforms;
-        string uniprotXmlFile;
-        int numETPairs;
-        int numETPeaks;
-        int numEEPairs;
-        int numEEPeaks;
-      //  string loadAndRunMethod;
-        
+        #region Public Constructor
 
         public ResultsSummary()
         {
             InitializeComponent();
+            this.AutoScroll = true;
+            this.AutoScrollMinSize = this.ClientSize;
         }
 
-        private void ResultsSummary_Load(object sender, EventArgs e)
+        #endregion Public Constructor
+
+        #region Public Property
+
+        public List<DataTable> DataTables { get; private set; }
+
+        #endregion Public Property
+
+        #region Public Methods
+
+        public List<DataTable> SetTables()
         {
-            createResultsSummary();
-            displayResultsSummary();
-
+            return null;
         }
 
-        private void createResultsSummary()
+        public void create_summary()
         {
-            deconResultsFileNames = Lollipop.deconResultsFileNames;
-            numRawExpComponents = Lollipop.raw_experimental_components.Count;
-            numNeucodePairs = Lollipop.raw_neucode_pairs.Count;
-            numExperimentalProteoforms = Lollipop.proteoform_community.experimental_proteoforms.Count;
-            uniprotXmlFile = Lollipop.uniprot_xml_filepath;
-            numETPairs = Lollipop.et_relations.Count;
-            numETPeaks = Lollipop.et_peaks.Count;
-            numEEPairs = Lollipop.ee_relations.Count;
-            numEEPeaks = Lollipop.ee_peaks.Count;
-
+            rtb_summary.Text = ResultsSummaryGenerator.generate_full_report();
         }
 
-        private void displayResultsSummary()
+        public bool ReadyToRunTheGamut()
         {
-            lb_deconResults.DataSource = deconResultsFileNames;
-            tb_RawExperimentalComponents.Text = numRawExpComponents.ToString();
-            tb_neucodePairs.Text = numNeucodePairs.ToString();
-            tb_experimentalProteoforms.Text = numExperimentalProteoforms.ToString();
-            tb_uniprotXmlDatabase.Text = uniprotXmlFile;
-            tb_ETPairs.Text = numETPairs.ToString();
-            tb_ETPeaks.Text = numETPeaks.ToString();
-            tb_EEPairs.Text = numEEPairs.ToString();
-            tb_EEPeaks.Text = numEEPeaks.ToString();
-
+            return true;
         }
+
+        public void RunTheGamut(bool full_run)
+        {
+            create_summary();
+        }
+
+        public void InitializeParameterSet()
+        {
+            tb_summarySaveFolder.Text = Sweet.lollipop.results_folder;
+            cmbx_analysis.Items.Clear();
+            cmbx_analysis.Items.AddRange(new string[]
+            {
+                "Tusher Analysis (" + Sweet.lollipop.TusherAnalysis1.sortedPermutedRelativeDifferences.Count.ToString() + " Permutations)",
+                "Tusher Analysis (" + Sweet.lollipop.TusherAnalysis2.sortedPermutedRelativeDifferences.Count.ToString() + " Permutations)",
+                "Log2 Fold Change Analysis (" + Sweet.lollipop.Log2FoldChangeAnalysis.benjiHoch_fdr.ToString() + " FDR)"
+            });
+            cmbx_analysis.SelectedIndex = 1;
+        }
+
+        public void ClearListsTablesFigures(bool x)
+        {
+            rtb_summary.Text = "";
+            tb_summarySaveFolder.Text = "";
+            //Sweet.lollipop.results_folder = "";
+        }
+
+        public void FillTablesAndCharts()
+        {
+            create_summary();
+        }
+
+        public IGoAnalysis get_go_analysis()
+        {
+            return cmbx_analysis.SelectedIndex == 0 ? Sweet.lollipop.TusherAnalysis1 as IGoAnalysis : cmbx_analysis.SelectedIndex == 1 ? Sweet.lollipop.TusherAnalysis2 as IGoAnalysis : Sweet.lollipop.Log2FoldChangeAnalysis as IGoAnalysis;
+        }
+
+        public TusherAnalysis get_tusher_analysis()
+        {
+            return cmbx_analysis.SelectedIndex == 0 ? Sweet.lollipop.TusherAnalysis1 as TusherAnalysis : cmbx_analysis.SelectedIndex == 1 ? Sweet.lollipop.TusherAnalysis2 as TusherAnalysis : null;
+        }
+
+        #endregion Public Methods
+
+        #region Private Fields
+
+        FolderBrowserDialog folderBrowser = new FolderBrowserDialog();
+
+        #endregion Private Fields
+
+        #region Private Methods
+
+        private void btn_browseSummarySaveFolder_Click(object sender, EventArgs e)
+        {
+            DialogResult dr = folderBrowser.ShowDialog();
+            if (dr == DialogResult.OK)
+            {
+                string temp_folder_path = folderBrowser.SelectedPath;
+                tb_summarySaveFolder.Text = temp_folder_path;
+                Sweet.lollipop.results_folder = temp_folder_path;
+            }
+        }
+
+        private void btn_save_Click(object sender, EventArgs e)
+        {
+            if (!Directory.Exists(Sweet.lollipop.results_folder)) return;
+            string timestamp = Sweet.time_stamp();
+            ResultsSummaryGenerator.save_all(Sweet.lollipop.results_folder, timestamp, get_go_analysis(), get_tusher_analysis());
+            ((ProteoformSweet)MdiParent).save_all_plots(Sweet.lollipop.results_folder, timestamp);
+            using (StreamWriter file = new StreamWriter(Path.Combine(Sweet.lollipop.results_folder, "presets_" + timestamp + ".xml")))
+                file.WriteLine(Sweet.save_method());
+        }
+
+        #endregion Private Methods
+
     }
 }
